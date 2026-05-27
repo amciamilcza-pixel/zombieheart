@@ -4,7 +4,7 @@ run_me.py
 ZOMBIE APOCALYPSE ECG -- DFT Signals & Systems Project
 Signals and Systems 4CA20, 2025-2026
 ------------------------------------------------------
-Run this file to reproduce ALL figures and results:
+Run this file to reproduce ALL figures, audio files, and results:
 
     python run_me.py
 
@@ -17,22 +17,21 @@ Outputs are saved to ./figures/
   fig3b_window_accuracy.png      -- parameter sensitivity: BPM accuracy vs N
   fig4_noise_robustness.png      -- noise robustness: BPM error vs SNR
   fig5_failure_cases.png         -- failure cases: leakage + non-stationarity
-
-Project structure
------------------
-  ecg_signals.py   synthetic ECG generator (normal / bradycardia / arrhythmia)
-  dft_filter.py    DFT-based bandpass + notch + inverse DFT recovery
-  stress_tests.py  three structured robustness analyses
-  plots.py         all plotting functions (dark apocalypse theme)
-  run_me.py        ← YOU ARE HERE
+  
+  *NEW AUDIO OUTPUTS:*
+  audio_normal_clean.wav / audio_normal_noisy.wav / audio_normal_recovered.wav
+  audio_bradycardia_clean.wav / audio_bradycardia_noisy.wav / audio_bradycardia_recovered.wav
+  audio_arrhythmia_clean.wav / audio_arrhythmia_noisy.wav / audio_arrhythmia_recovered.wav
 """
 
+import os
 import sys
 import time
 import numpy as np
+from scipy.io import wavfile
 
 print("=" * 60)
-print("  ☣  ZOMBIE ECG PROJECT -- generating all figures")
+print("  ☣  ZOMBIE ECG PROJECT -- generating all figures & audio")
 print("=" * 60)
 
 # ── imports ------------------------------------------------------────────────
@@ -49,10 +48,44 @@ FS       = 500     # sample rate (Hz) -- standard clinical ECG
 DURATION = 10.0    # seconds
 SNR_DB   = 5       # dB -- pretty buried in noise (apocalypse is harsh)
 
+
+# ── sonification function ------------------------------------------------────
+def sonify_heartbeats(t, ecg_signal, fs, filename="heart_sound.wav"):
+    """
+    Sonifies an ECG signal using Frequency Modulation (FM Synthesis).
+    Maps the low-frequency ECG voltage directly to an audible pitch.
+    """
+    audio_fs = 44100  # Standard CD audio rate
+    
+    # Interpolate the low-frequency ECG timeline up to the audio timeline
+    t_audio = np.arange(0, t[-1], 1.0 / audio_fs)
+    ecg_audio = np.interp(t_audio, t, ecg_signal)
+    
+    # Normalize the ECG wave between 0.0 and 1.0 safely
+    min_val = np.min(ecg_audio)
+    max_val = np.max(ecg_audio)
+    ecg_norm = (ecg_audio - min_val) / (max_val - min_val + 1e-6)
+    
+    # FM Synthesis parameters
+    f_carrier = 440.0     # Base frequency (Hz)
+    f_mod_depth = 440.0   # How high up the frequency climbs during an R-spike
+    
+    # Integrate frequency changes over time to yield continuous tracking phase
+    phase = 2 * np.pi * (f_carrier * t_audio + f_mod_depth * np.cumsum(ecg_norm) / audio_fs)
+    audio_wave = np.sin(phase)
+    
+    # Scale to 16-bit PCM Signed Integer Audio
+    audio_pcm = np.int16(audio_wave * 32767)
+    
+    os.makedirs("./figures", exist_ok=True)
+    wavfile.write(f"./figures/{filename}", audio_fs, audio_pcm)
+    print(f"      ✓ Audio sonification saved: ./figures/{filename}")
+
+
 # ------------------------------------------------------------------------─────
-# SECTION 1 -- Generate the three heart signals
+# SECTION 1 -- Generate the three heart signals & Sonify Clean Baselines
 # ------------------------------------------------------------------------─────
-print("\n[1/5] Generating cardiac signals …")
+print("\n[1/5] Generating cardiac signals & saving clean audio baseline…")
 
 t, ecg_normal       = generate_normal     (fs=FS, duration=DURATION)
 _, ecg_bradycardia  = generate_bradycardia(fs=FS, duration=DURATION)
@@ -65,20 +98,22 @@ signals_clean = {
 }
 
 # Print true BPM for reference
-print(f"   Normal       BPM (DFT estimate): "
-      f"{heart_rate_from_dft(ecg_normal, FS):.1f}")
-print(f"   Bradycardia  BPM (DFT estimate): "
-      f"{heart_rate_from_dft(ecg_bradycardia, FS):.1f}")
-print(f"   Arrhythmia   BPM (DFT estimate): "
-      f"{heart_rate_from_dft(ecg_arrhythmia, FS):.1f}")
+print(f"   Normal       BPM (DFT estimate): {heart_rate_from_dft(ecg_normal, FS):.1f}")
+sonify_heartbeats(t, ecg_normal, FS, "audio_normal_clean.wav")
+
+print(f"   Bradycardia  BPM (DFT estimate): {heart_rate_from_dft(ecg_bradycardia, FS):.1f}")
+sonify_heartbeats(t, ecg_bradycardia, FS, "audio_bradycardia_clean.wav")
+
+print(f"   Arrhythmia   BPM (DFT estimate): {heart_rate_from_dft(ecg_arrhythmia, FS):.1f}")
+sonify_heartbeats(t, ecg_arrhythmia, FS, "audio_arrhythmia_clean.wav")
 
 # Figure 1
 plot_three_hearts(t, signals_clean, FS)
 
 # ------------------------------------------------------------------------─────
-# SECTION 2 -- Bury in noise → DFT recovery pipeline
+# SECTION 2 -- Bury in noise → DFT recovery pipeline & Sonify Noisy + Recovered
 # ------------------------------------------------------------------------─────
-print("\n[2/5] Running DFT recovery pipeline …")
+print("\n[2/5] Running DFT recovery pipeline & saving noisy/recovered audio…")
 
 configs = [
     ("normal",      ecg_normal,      "normal"),
@@ -92,8 +127,13 @@ for label, ecg_clean, color_key in configs:
 
     bpm_noisy     = heart_rate_from_dft(noisy, FS)
     bpm_recovered = heart_rate_from_dft(recovered, FS)
-    print(f"   {label:15s}  BPM from noisy={bpm_noisy:.1f}  "
-          f"BPM after DFT filter={bpm_recovered:.1f}")
+    print(f"   {label:15s}  BPM from noisy={bpm_noisy:.1f}  BPM after DFT filter={bpm_recovered:.1f}")
+
+    # Sonify the noisy version
+    sonify_heartbeats(t, noisy, FS, f"audio_{label}_noisy.wav")
+    
+    # Sonify the recovered/filtered version
+    sonify_heartbeats(t, recovered, FS, f"audio_{label}_recovered.wav")
 
     plot_recovery_pipeline(t, ecg_clean, noisy, recovered,
                            X_noisy, X_recovered, freqs, FS,
@@ -142,32 +182,5 @@ plot_failure_cases(fc_data)
 # SUMMARY
 # ------------------------------------------------------------------------─────
 print("\n" + "=" * 60)
-print("  ✓  All figures saved to ./figures/")
+print("  ✓  All figures and audio files saved to ./figures/")
 print("=" * 60)
-print("""
-Summary of results
-------------------
-[1] Three heart types clearly distinguishable in DFT domain:
-   normal (sharp 1.17 Hz fundamental), bradycardia (0.5 Hz),
-   arrhythmia (broadened/irregular spectrum ~2.3 Hz).
-
-[2] DFT recovery pipeline successfully extracts cardiac signal
-   from SNR=5 dB apocalypse noise using bandpass + notch filter
-   followed by inverse DFT.
-
-[3] Parameter sensitivity: frequency resolution Df = fs/N means
-   small windows (N<256) cannot resolve heartbeat harmonics.
-   Window >= 1024 samples needed for reliable BPM detection.
-
-[4] Noise robustness: detection remains valid above ~10 dB SNR
-   for normal, ~15 dB for bradycardia (weaker signal), and
-   ~12 dB for arrhythmia. Below threshold BPM error > 10 BPM.
-
-[5] Failure cases:
-   A) Spectral leakage smears the fundamental frequency peak
-      when window length is not aligned to signal periodicity.
-      Hann window reduces but does not eliminate leakage.
-   B) Global DFT of arrhythmia signal is MISLEADING -- it returns
-      a single average frequency hiding beat-to-beat variability.
-      Sliding-window DFT (STFT) reveals the non-stationarity.
-""")
