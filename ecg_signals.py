@@ -1,7 +1,7 @@
 """
 ecg_signals.py
---------------
-Realistic ECG simulation using numpy only.
+-----------------
+ECG is simulated using numpy math fucntions, since the global mit database was not working T-T
 
 The PQRST shape is modelled as a sum of Gaussians matching clinical ECG
 morphology (P bump -> Q dip -> tall R spike -> S dip -> T bump -> flat).
@@ -10,22 +10,23 @@ Three heart types
 -----------------
   normal      : 70 BPM — clean upright PQRST, stable
   bradycardia : 30 BPM — INVERTED around x-axis (everything flipped:
-                P bump becomes negative, R spike points DOWN, S dip
-                points UP, T bump becomes negative), amplitude 45%
-  arrhythmia  : ~140 BPM — random timing jitter ±35%, random amplitude
-                per beat — chaotic zombie heart
+                P bump becomes negative, R spike points down, S dip
+                points UP, T bump becomes negative), amplitude 45% - created 
+                as a made up heartbead of a dying/decomposing zombie
+  arrhythmia  : 140 BPM — random timing jitter ±35%, random amplitude
+                per beat — chaotic zombie heart, turned not too long ago and agressive 
 
-IMPORTANT — noise philosophy
+IMPORTANT — noise 
 -----------------------------
-All three signals are generated CLEAN, then add_apocalypse_noise()
+All three signals are generated clean, then add_apocalypse_noise()
 buries them in three layers of physical noise. The whole point of the
-project is that the DFT filter then RECOVERS the clean signal from the
+project is that the DFT filter then recovers/cleans up the signal from the
 mess. So the raw input to the DFT pipeline is always the noisy version.
 
 Noise layers:
-  1. White Gaussian noise  — electrical interference, amplitude set by SNR
+  1. White noise  — electrical interference, amplitude set by SNR
   2. Baseline wander 0.2Hz — breathing/movement artefact
-  3. 50 Hz power-line hum  — bunker generator interference
+  3. 50 Hz power-line hum  — bunker generator interference (typical for EU)
 """
 
 import numpy as np
@@ -34,7 +35,7 @@ FS       = 500
 DURATION = 10.0
 
 
-# ── realistic PQRST template ──────────────────────────────────────────────────
+# ── PQRST template ──────────────────────────────────────────────────
 
 def _pqrst(t, amp=1.0):
     """

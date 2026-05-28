@@ -33,14 +33,13 @@ This project uses that idea to:
   Generates the normal, bradycardia, and arrhythmia ECG signals. Also adds noise to the signals.
 
 * `dft_filter.py`
-  Contains the DFT-based filtering functions, including bandpass filtering, notch filtering, spectrum calculation, and heart-rate estimation.
+  Contains the DFT based filtering functions, including bandpass filtering, notch filtering, spectrum calculation, and heart-rate estimation.
 
 * `plots.py`
   Creates and saves all project figures in the `figures/` folder.
 
 * `stress_tests.py`
   Contains tests for window-size sensitivity, noise robustness, and DFT limitations.
-
 
 * `initialize.py`
   Experimental file for loading real ECG records using WFDB.
@@ -79,3 +78,14 @@ It also generates `.wav` audio files so the ECG signals can be heard as sound.
 ## Notes
 
 Some experimental files may need cleanup before final submission. In particular, `stress_tests.py` should be checked for function-name consistency with the rest of the project.
+
+
+
+interestign cases:
+207 very deep grove the round grove 
+233 - irregular chaotic heartbeat to look at 
+116 very fast 
+118 noise 
+119 arythmia 
+122 strong peak hella fast 
+200 weird 
