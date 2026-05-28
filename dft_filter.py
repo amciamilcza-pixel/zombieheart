@@ -11,6 +11,7 @@ Keeps only frequencies inside the desired range.
 
 import numpy as np
 from scipy.signal import find_peaks
+from scipy.signal import butter, filtfilt, iirnotch
 
 
 def spectral_magnitude(signal, fs):
@@ -70,19 +71,71 @@ def dft_notch(signal, fs, f_notch, bandwidth=2.0):
     return np.fft.ifft(X).real
 
 
-def recover_ecg(noisy_signal, fs, f_low=0.5, f_high=45.0, notch_hz=50.0):
-    """
-    Full DFT-based ECG recovery pipeline:
-      Step 1 — Notch filter  : remove 50 Hz hum
-      Step 2 — Bandpass      : keep only 0.5–45 Hz (cardiac content)
-      Step 3 — Inverse DFT   : back to time domain
+def spectral_magnitude(signal, fs):
+    signal = np.asarray(signal)
+    freqs = np.fft.rfftfreq(len(signal), d=1/fs)
+    fft_vals = np.fft.rfft(signal)
+    mag = np.abs(fft_vals)
+    return freqs, mag, fft_vals
 
-    Returns recovered signal + DFT arrays for before/after comparison plots.
+
+def recover_ecg(signal, fs):
     """
-    after_notch              = dft_notch(noisy_signal, fs, notch_hz)
-    recovered, X_rec, freqs  = dft_bandpass(after_notch, fs, f_low, f_high)
-    X_noisy                  = np.fft.fft(noisy_signal)
-    return recovered, X_noisy, X_rec, freqs
+    Clean a real ECG signal:
+    1. remove mean (DC offset)
+    2. notch filter at 50 Hz
+    3. bandpass filter for ECG range
+    """
+
+    x = np.asarray(signal, dtype=float)
+
+    # Remove baseline offset so raw and filtered can be compared fairly
+    x_centered = x - np.mean(x)
+
+    # 50 Hz notch filter
+    b_notch, a_notch = iirnotch(w0=50, Q=30, fs=fs)
+    x_notched = filtfilt(b_notch, a_notch, x_centered)
+
+    # Stronger ECG bandpass
+    # 0.5 Hz removes slow drift
+    # 20 Hz removes a lot of high-frequency noise
+    b_band, a_band = butter(4, [0.5, 20], btype='bandpass', fs=fs)
+    x_filtered = filtfilt(b_band, a_band, x_notched)
+
+    # Spectra for plotting
+    freqs, mag_before, _ = spectral_magnitude(x_centered, fs)
+    _, mag_after, _ = spectral_magnitude(x_filtered, fs)
+
+    return x_filtered, freqs, mag_before, mag_after
+
+
+def heart_rate_from_dft(signal, fs):
+    """
+    Estimate BPM from the dominant low-frequency peak in the ECG spectrum.
+    """
+    signal = np.asarray(signal, dtype=float)
+    signal = signal - np.mean(signal)
+
+    freqs = np.fft.rfftfreq(len(signal), d=1/fs)
+    mag = np.abs(np.fft.rfft(signal))
+
+    # Search only plausible heart-rate frequencies:
+    # 0.6 Hz to 3.5 Hz -> 36 BPM to 210 BPM
+    mask = (freqs >= 0.6) & (freqs <= 3.5)
+
+    freqs_hr = freqs[mask]
+    mag_hr = mag[mask]
+
+    peaks, _ = find_peaks(mag_hr)
+
+    if len(peaks) == 0:
+        dominant_freq = freqs_hr[np.argmax(mag_hr)]
+    else:
+        dominant_peak = peaks[np.argmax(mag_hr[peaks])]
+        dominant_freq = freqs_hr[dominant_peak]
+
+    bpm = dominant_freq * 60
+    return bpm
 
 
 def heart_rate_from_dft(signal, fs, search_band=(0.4, 3.5)):
