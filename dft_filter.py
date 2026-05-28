@@ -1,22 +1,12 @@
 """
 dft_filter.py
--------------
-DFT-based signal recovery for the Zombie Apocalypse ECG project.
 
-All filtering is done EXPLICITLY in the frequency domain using numpy FFT.
-The DFT is the core analytical tool — not just a visualisation step.
+# FFT-based ECG filtering.
+# Removes baseline drift and power-line noise in frequency domain.
 
-Key insight: the DFT decomposes the signal into frequency components.
-By zeroing bins outside the cardiac band and inverting, we recover only
-the heartbeat — everything else (noise, hum, wander) is discarded.
 
-Functions
----------
-dft_bandpass        : zero DFT bins outside [f_low, f_high], then IDFT
-dft_notch           : zero DFT bins around a specific frequency
-recover_ecg         : full pipeline: notch + bandpass + inverse DFT
-spectral_magnitude  : one-sided magnitude spectrum
-heart_rate_from_dft : find fundamental frequency peak → BPM
+Bandpass filter using FFT masking.
+Keeps only frequencies inside the desired range.
 """
 
 import numpy as np

@@ -4,11 +4,11 @@ ZombieHeart is a Signals and Systems project that demonstrates how the Discrete 
 
 The project generates three synthetic ECG signals:
 
-* **Normal heart**: a regular 70 BPM heartbeat.
-* **Bradycardia**: a slow, weak, inverted heartbeat representing a “dying” heart.
-* **Arrhythmia**: a fast, irregular “zombie” heartbeat with random timing and amplitude changes.
+* Normal heart: a regular 70 BPM heartbeat.
+* Bradycardia: a slow, weak, inverted heartbeat representing a “dying- zombie” heart.
+* Arrhythmia: a fast, irregular “zombie” heartbeat with random timing and amplitude changes.
 
-After generating the clean ECG signals, the code adds realistic noise, including random white noise, slow baseline drift, and 50 Hz power-line interference. The DFT is then used to move the signal into the frequency domain, remove unwanted frequency components, and reconstruct the cleaned ECG signal using the inverse DFT.
+After generating the clean ECG signals, the code adds realistic noise, including random white noise, slow baseline drift, and 50 Hz power-line interference (typical for EU electric noise). The DFT is then used to move the signal into the frequency domain, remove unwanted frequency components, and reconstruct the cleaned ECG signal using the inverse DFT.
 
 ## Main idea
 
@@ -41,8 +41,6 @@ This project uses that idea to:
 * `stress_tests.py`
   Contains tests for window-size sensitivity, noise robustness, and DFT limitations.
 
-* `idk.py`
-  Experimental ECG-to-audio sonification function.
 
 * `initialize.py`
   Experimental file for loading real ECG records using WFDB.
